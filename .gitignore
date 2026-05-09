@@ -1,0 +1,12 @@
+# Source PDFs and any local notes — kept out of the public repo
+*.pdf
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Local-only configs (just in case you save Firebase config to a file later)
+firebase-config.local.*

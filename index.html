@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b5394" />
+<title>Badminton Tournament Manager</title>
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --border: #e3e7ee;
+    --text: #1f2a37;
+    --muted: #6b7280;
+    --primary: #0b5394;
+    --primary-dark: #083d6f;
+    --accent: #f59e0b;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --row-alt: #fafbfc;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(11,83,148,0.06);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    min-height: 100vh;
+  }
+  header.app-header {
+    background: var(--primary);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+  header.app-header .title { font-weight: 600; font-size: 16px; }
+  header.app-header .sub { font-size: 12px; opacity: 0.85; }
+  header.app-header button { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.25); }
+  header.app-header button:hover { background: rgba(255,255,255,0.25); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  h1 { font-size: 22px; margin: 0 0 12px; }
+  h2 { font-size: 18px; margin: 0 0 10px; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 0 0 auto; }
+  .grow { flex: 1 1 auto; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+  textarea { font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 13px; min-height: 120px; }
+  button {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  button:hover { background: #f7f9fc; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  button.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  button.danger { color: var(--danger); border-color: #f3c7c7; }
+  button.danger:hover { background: #fdf2f2; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--primary); padding: 6px 8px; }
+  button.ghost:hover { background: #eef3fb; }
+  button.small { padding: 5px 10px; font-size: 13px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: #f6f8fc; font-weight: 600; font-size: 13px; color: var(--muted); }
+  tr:nth-child(even) td { background: var(--row-alt); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .grid { display: grid; gap: 12px; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px) {
+    .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+    main { padding: 10px; }
+    .card { padding: 12px; }
+    th, td { padding: 6px 8px; font-size: 13px; }
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    color: var(--muted);
+    font: inherit;
+    border-radius: 0;
+    white-space: nowrap;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef3fb;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill.green { background: #e7f5ec; color: var(--success); }
+  .pill.amber { background: #fff4e0; color: #b45309; }
+  .pill.gray { background: #f1f3f7; color: var(--muted); }
+  .match-row { display: grid; grid-template-columns: auto 1fr auto 1fr auto; gap: 6px; align-items: center; }
+  .match-row .vs { color: var(--muted); font-size: 12px; padding: 0 4px; }
+  .match-row .score-input { width: 64px; text-align: center; padding: 8px; }
+  .winner { font-weight: 600; color: var(--success); }
+  .loser { color: var(--muted); }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: #fafbfc;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%) translateY(80px);
+    background: #1f2a37;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 24px;
+    font-size: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    opacity: 0;
+    transition: transform 0.25s, opacity 0.25s;
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 90%;
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .modal-back {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 100;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal {
+    background: #fff; border-radius: 12px; padding: 18px; width: 100%; max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal h3 { margin-top: 0; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .conn-dot.ok { background: #22c55e; }
+  .conn-dot.err { background: #ef4444; }
+  .court-tag { font-family: ui-monospace, Menlo, monospace; background: #eef3fb; color: var(--primary); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .standings-table td.rank { font-weight: 700; color: var(--primary); width: 40px; text-align: center; }
+  .standings-table td.team { font-weight: 500; }
+  details > summary { cursor: pointer; padding: 6px 0; user-select: none; font-weight: 500; }
+  details[open] > summary { margin-bottom: 6px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .copy-link { font-size: 12px; word-break: break-all; background: #f6f8fc; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); }
+  .danger-text { color: var(--danger); font-size: 13px; }
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div>
+    <div class="title">🏸 Badminton Tournament</div>
+    <div class="sub" id="connectionLabel"><span class="conn-dot" id="connDot"></span><span id="connText">Loading…</span></div>
+  </div>
+  <div class="row">
+    <button class="small" id="btnHome" title="Home">🏠 Home</button>
+    <button class="small" id="btnSettings" title="Settings">⚙</button>
+  </div>
+</header>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+import {
+  getDatabase, ref, onValue, set, update, remove, push, child, get, off, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
+
+// ====================== Storage / Firebase Init ======================
+const FIREBASE_KEY = 'btm_firebase_config_v1';
+const LAST_TID_KEY = 'btm_last_tid';
+
+function loadFbConfig() {
+  try { return JSON.parse(localStorage.getItem(FIREBASE_KEY) || 'null'); } catch (_) { return null; }
+}
+function saveFbConfig(cfg) {
+  localStorage.setItem(FIREBASE_KEY, JSON.stringify(cfg));
+}
+function clearFbConfig() {
+  localStorage.removeItem(FIREBASE_KEY);
+}
+
+let app = null, db = null;
+function initFirebase(cfg) {
+  app = initializeApp(cfg);
+  db = getDatabase(app);
+  setConnState('ok', 'Connected to ' + (cfg.projectId || 'Firebase'));
+}
+function setConnState(state, label) {
+  const dot = document.getElementById('connDot');
+  const txt = document.getElementById('connText');
+  dot.className = 'conn-dot' + (state === 'ok' ? ' ok' : state === 'err' ? ' err' : '');
+  txt.textContent = label;
+}
+
+// ====================== Toast ======================
+let toastTimer = null;
+function toast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ====================== Router ======================
+function go(hash) { location.hash = hash; }
+function parseHash() {
+  const h = (location.hash || '#/').replace(/^#/, '');
+  const parts = h.split('/').filter(Boolean);
+  return parts; // [] or ['t', '<id>'] or ['t', '<id>', 'groups'] or ['settings']
+}
+
+// ====================== State ======================
+let state = {
+  tid: null,            // current tournament id
+  unsub: null,          // current onValue unsubscribe
+  data: null,           // current tournament data
+  view: 'teams',        // teams|groups|matches|standings
+};
+
+// ====================== Helpers ======================
+function uid(prefix = '') {
+  return prefix + Math.random().toString(36).slice(2, 9);
+}
+function shortCode() {
+  const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += A[Math.floor(Math.random() * A.length)];
+  return s;
+}
+function escapeHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function teamLabel(t) {
+  if (!t) return '—';
+  const players = [t.player1, t.player2].filter(Boolean).join(' / ');
+  return `${t.label ? t.label + ' • ' : ''}${players || '(no names)'}`;
+}
+function teamShort(t) {
+  if (!t) return '—';
+  const players = [t.player1, t.player2].filter(Boolean).join('/');
+  return players || t.label || '?';
+}
+function nextLabel(existing) {
+  // A,B,...,Z, then AA,BB...
+  const used = new Set(existing.map(t => (t.label || '').toUpperCase()));
+  for (let i = 0; i < 26; i++) {
+    const l = String.fromCharCode(65 + i);
+    if (!used.has(l)) return l;
+  }
+  for (let i = 0; i < 26; i++) {
+    const l = String.fromCharCode(65 + i) + String.fromCharCode(65 + i);
+    if (!used.has(l)) return l;
+  }
+  return '?';
+}
+function pairings(teamIds) {
+  const out = [];
+  for (let i = 0; i < teamIds.length; i++)
+    for (let j = i + 1; j < teamIds.length; j++)
+      out.push([teamIds[i], teamIds[j]]);
+  return out;
+}
+
+// ====================== Render entry point ======================
+async function render() {
+  const root = document.getElementById('app');
+  const cfg = loadFbConfig();
+  const parts = parseHash();
+
+  // teardown previous listener if leaving tournament view
+  if (state.unsub && (parts[0] !== 't' || parts[1] !== state.tid)) {
+    state.unsub();
+    state.unsub = null;
+    state.tid = null;
+    state.data = null;
+  }
+
+  if (parts[0] === 'settings') {
+    renderSettings(root);
+    return;
+  }
+
+  if (!cfg) {
+    setConnState('err', 'Setup needed');
+    renderFirstRunSetup(root);
+    return;
+  }
+
+  if (!app) {
+    try { initFirebase(cfg); } catch (e) {
+      setConnState('err', 'Firebase init failed');
+      renderFirstRunSetup(root, 'Could not initialize Firebase: ' + e.message);
+      return;
+    }
+  }
+
+  if (parts[0] === 't' && parts[1]) {
+    await renderTournament(root, parts[1], parts[2] || 'teams');
+    return;
+  }
+
+  renderHome(root);
+}
+
+// ====================== Settings / first run ======================
+function renderFirstRunSetup(root, errMsg) {
+  root.innerHTML = `
+    <div class="card">
+      <h1>Welcome 👋</h1>
+      <p>This is a free, real-time badminton tournament manager. Multiple referees can enter scores from different phones and everyone sees live updates. To enable that, you need a free Firebase project (5-minute setup).</p>
+      ${errMsg ? `<p class="danger-text">${escapeHTML(errMsg)}</p>` : ''}
+      <details>
+        <summary>📘 Quick setup steps (one-time)</summary>
+        <ol style="font-size:14px; color:var(--text);">
+          <li>Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a> and click <b>Add project</b>. Pick any name (e.g. <i>my-badminton</i>) and click through with default options. (You can disable Google Analytics.)</li>
+          <li>In the left menu open <b>Build → Realtime Database → Create Database</b>. Choose any region, then pick <b>Start in test mode</b> for the rules (you can lock it down later).</li>
+          <li>Go to <b>Project settings (gear icon) → General</b>, scroll to <i>Your apps</i>, click <b>&lt;/&gt; (Web)</b> to register a web app. Give it a nickname and click Register.</li>
+          <li>Firebase shows a <code>firebaseConfig</code> object. Copy the entire <code>{ ... }</code> block and paste it below.</li>
+        </ol>
+      </details>
+      <hr/>
+      <label>Paste your Firebase web config (the object containing <code>apiKey</code>, <code>databaseURL</code>, etc.)</label>
+      <textarea id="cfgText" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "myproj.firebaseapp.com",
+  "databaseURL": "https://myproj-default-rtdb.firebaseio.com",
+  "projectId": "myproj",
+  "storageBucket": "myproj.appspot.com",
+  "messagingSenderId": "...",
+  "appId": "1:..."
+}'></textarea>
+      <p class="muted" style="margin-top:8px;">Important: the config must include <code>databaseURL</code>. If you only see <code>apiKey</code> etc., make sure you completed step 2 (Realtime Database) first and reloaded the project settings page.</p>
+      <div class="row">
+        <button class="primary" id="cfgSave">Save & continue</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('cfgSave').onclick = () => {
+    const txt = document.getElementById('cfgText').value.trim();
+    let cfg;
+    try {
+      // Accept JS-style or JSON-style
+      cfg = parseLooseConfig(txt);
+    } catch (e) {
+      toast('Could not parse config: ' + e.message);
+      return;
+    }
+    if (!cfg || !cfg.apiKey || !cfg.databaseURL) {
+      toast('Config must include apiKey and databaseURL.');
+      return;
+    }
+    saveFbConfig(cfg);
+    try {
+      initFirebase(cfg);
+      toast('Connected!');
+      go('#/');
+    } catch (e) {
+      toast('Init failed: ' + e.message);
+    }
+  };
+}
+function parseLooseConfig(txt) {
+  // Try JSON first
+  try { return JSON.parse(txt); } catch (_) { /* fall through */ }
+  // Try eval-style: allow trailing commas, unquoted keys, single quotes
+  // Extract the object literal from the pasted snippet
+  const m = txt.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('No object found');
+  const obj = m[0]
+    .replace(/([\{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":') // unquoted keys
+    .replace(/'([^']*)'/g, '"$1"')   // single -> double quotes
+    .replace(/,(\s*[\}\]])/g, '$1'); // trailing commas
+  return JSON.parse(obj);
+}
+
+function renderSettings(root) {
+  const cfg = loadFbConfig();
+  root.innerHTML = `
+    <div class="card">
+      <h1>Settings</h1>
+      <h3>Firebase connection</h3>
+      <p class="muted">Project: <b>${cfg ? escapeHTML(cfg.projectId || '(unknown)') : 'not configured'}</b></p>
+      <div class="row">
+        <button id="btnReconfig">Replace Firebase config…</button>
+        <button class="danger" id="btnLogout">Disconnect (clear local config)</button>
+      </div>
+      <hr/>
+      <h3>About</h3>
+      <p class="muted">Single-file web app. All your data lives in your own Firebase project. Share a tournament code with co-referees so they can score from any device. Open this app on any phone or laptop with internet — no install needed.</p>
+      <h3>Suggested Realtime Database rules</h3>
+      <p class="muted">In Firebase Console → Realtime Database → Rules, you can use this for open scoring (no login):</p>
+      <textarea readonly>{
+  "rules": {
+    "tournaments": {
+      ".read": true,
+      "$tid": {
+        ".write": true,
+        ".indexOn": ["createdAt"]
+      }
+    }
+  }
+}</textarea>
+      <p class="muted">For tighter control, switch to authenticated rules later. The current open rules let anyone with the URL read/write — fine for a club tournament.</p>
+    </div>
+  `;
+  document.getElementById('btnReconfig').onclick = () => { clearFbConfig(); location.reload(); };
+  document.getElementById('btnLogout').onclick = () => {
+    if (confirm('This clears the Firebase config from this device. Continue?')) {
+      clearFbConfig();
+      location.reload();
+    }
+  };
+}
+
+// ====================== Home / tournament list ======================
+async function renderHome(root) {
+  setConnState('ok', 'Connected');
+  root.innerHTML = `
+    <div class="card">
+      <h1>Tournaments</h1>
+      <p class="muted">Create a new tournament or open one by its code.</p>
+      <div class="row">
+        <button class="primary" id="btnNew">+ New tournament</button>
+        <input id="joinCode" placeholder="Enter tournament code (e.g. BAD-9X3K)" style="max-width:280px;" />
+        <button id="btnJoin">Open</button>
+      </div>
+    </div>
+    <div class="card" id="recentCard">
+      <h2>Recent</h2>
+      <div id="recentList"><div class="empty">Loading…</div></div>
+    </div>
+  `;
+
+  document.getElementById('btnNew').onclick = onCreateTournament;
+  document.getElementById('btnJoin').onclick = () => {
+    const c = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!c) { toast('Enter a code'); return; }
+    go('#/t/' + c);
+  };
+  document.getElementById('joinCode').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btnJoin').click();
+  });
+
+  // Load recent list (latest 10) — does not require knowing them; we list what's in /tournaments
+  try {
+    const snap = await get(ref(db, 'tournaments'));
+    const data = snap.val() || {};
+    const items = Object.entries(data)
+      .map(([id, v]) => ({ id, name: v?.name || '(unnamed)', createdAt: v?.createdAt || 0, teamCount: Object.keys(v?.teams || {}).length, groupCount: Object.keys(v?.groups || {}).length }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 12);
+    const lastId = localStorage.getItem(LAST_TID_KEY);
+    const list = document.getElementById('recentList');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty">No tournaments yet. Click <b>+ New tournament</b> to start.</div>`;
+    } else {
+      list.innerHTML = `
+        <table>
+          <thead><tr><th>Code</th><th>Name</th><th>Teams</th><th>Groups</th><th></th></tr></thead>
+          <tbody>
+          ${items.map(it => `
+            <tr>
+              <td><code class="court-tag">${escapeHTML(it.id)}</code> ${it.id === lastId ? '<span class="pill">last opened</span>' : ''}</td>
+              <td>${escapeHTML(it.name)}</td>
+              <td>${it.teamCount}</td>
+              <td>${it.groupCount}</td>
+              <td><button class="small primary" data-open="${it.id}">Open →</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+      list.querySelectorAll('button[data-open]').forEach(b => {
+        b.onclick = () => go('#/t/' + b.dataset.open);
+      });
+    }
+  } catch (e) {
+    document.getElementById('recentList').innerHTML = `<div class="empty">Could not load tournaments: ${escapeHTML(e.message)}</div>`;
+  }
+}
+
+async function onCreateTournament() {
+  const name = prompt('Tournament name:', 'EBUC Mini Tournament ' + new Date().toISOString().slice(0, 10));
+  if (!name) return;
+  const id = 'BAD-' + shortCode();
+  await set(ref(db, 'tournaments/' + id), {
+    name,
+    createdAt: Date.now()
+  });
+  localStorage.setItem(LAST_TID_KEY, id);
+  toast('Created ' + id);
+  go('#/t/' + id);
+}
+
+// ====================== Tournament view ======================
+async function renderTournament(root, tid, view) {
+  state.tid = tid;
+  state.view = view;
+  localStorage.setItem(LAST_TID_KEY, tid);
+  root.innerHTML = `<div class="card"><div class="empty">Loading tournament <b>${escapeHTML(tid)}</b>…</div></div>`;
+
+  // Subscribe
+  if (state.unsub) state.unsub();
+  const tref = ref(db, 'tournaments/' + tid);
+  state.unsub = onValue(tref, snap => {
+    state.data = snap.val();
+    if (!state.data) {
+      // tournament does not exist yet; offer to create
+      root.innerHTML = `
+        <div class="card">
+          <h1>Tournament <code>${escapeHTML(tid)}</code> not found</h1>
+          <p>This code does not match any tournament in your Firebase project.</p>
+          <div class="row">
+            <button class="primary" id="btnInit">Create one with this code</button>
+            <button id="btnBack">Back</button>
+          </div>
+        </div>`;
+      document.getElementById('btnInit').onclick = async () => {
+        const name = prompt('Tournament name:', 'New Tournament');
+        if (!name) return;
+        await set(tref, { name, createdAt: Date.now() });
+        toast('Created');
+      };
+      document.getElementById('btnBack').onclick = () => go('#/');
+      return;
+    }
+    paintTournament(root);
+  }, err => {
+    root.innerHTML = `<div class="card"><div class="empty">Error: ${escapeHTML(err.message)}<br/><br/>This usually means the database rules don't allow reading. Open Settings for suggested rules.</div></div>`;
+  });
+}
+
+function paintTournament(root) {
+  const t = state.data || {};
+  const tid = state.tid;
+  const teams = t.teams || {};
+  const groups = t.groups || {};
+  const matches = t.matches || {};
+
+  const teamCount = Object.keys(teams).length;
+  const groupCount = Object.keys(groups).length;
+  const matchCount = Object.keys(matches).length;
+  const completedCount = Object.values(matches).filter(m => m && (m.team1Score != null && m.team2Score != null)).length;
+
+  root.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <div>
+          <h1 style="margin-bottom:4px;">${escapeHTML(t.name || '(unnamed)')}</h1>
+          <div class="muted">Code: <code class="court-tag" id="codeTag">${escapeHTML(tid)}</code> <button class="ghost small" id="btnCopyCode">copy</button> <button class="ghost small" id="btnCopyLink">copy share link</button></div>
+        </div>
+        <div class="row">
+          <button class="small" id="btnRename">Rename</button>
+          <button class="small danger" id="btnDelete">Delete tournament</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <span class="pill">${teamCount} teams</span>
+        <span class="pill gray">${groupCount} groups</span>
+        <span class="pill ${completedCount === matchCount && matchCount > 0 ? 'green' : 'amber'}">${completedCount}/${matchCount} matches</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab ${state.view === 'teams' ? 'active' : ''}" data-view="teams">Teams</button>
+      <button class="tab ${state.view === 'groups' ? 'active' : ''}" data-view="groups">Groups</button>
+      <button class="tab ${state.view === 'matches' ? 'active' : ''}" data-view="matches">Matches</button>
+      <button class="tab ${state.view === 'standings' ? 'active' : ''}" data-view="standings">Standings</button>
+    </div>
+
+    <div id="tabBody"></div>
+  `;
+
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+    state.view = b.dataset.view;
+    go('#/t/' + tid + '/' + state.view);
+  });
+  document.getElementById('btnCopyCode').onclick = () => copyText(tid, 'Code copied');
+  document.getElementById('btnCopyLink').onclick = () => copyText(location.origin + location.pathname + '#/t/' + tid, 'Share link copied');
+  document.getElementById('btnRename').onclick = async () => {
+    const n = prompt('Rename tournament:', t.name || '');
+    if (n && n !== t.name) await update(ref(db, 'tournaments/' + tid), { name: n });
+  };
+  document.getElementById('btnDelete').onclick = async () => {
+    if (!confirm(`Permanently delete tournament "${t.name || tid}"? This cannot be undone.`)) return;
+    await remove(ref(db, 'tournaments/' + tid));
+    go('#/');
+  };
+
+  const body = document.getElementById('tabBody');
+  if (state.view === 'teams') paintTeams(body);
+  else if (state.view === 'groups') paintGroups(body);
+  else if (state.view === 'matches') paintMatches(body);
+  else if (state.view === 'standings') paintStandings(body);
+}
+
+function copyText(s, msg) {
+  navigator.clipboard?.writeText(s).then(() => toast(msg || 'Copied'), () => toast('Copy failed'));
+}
+
+// ====================== Teams tab ======================
+function paintTeams(body) {
+  const t = state.data, tid = state.tid;
+  const teamsObj = t.teams || {};
+  const list = Object.entries(teamsObj).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+
+  body.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2>Teams (${list.length})</h2>
+        <div class="row">
+          <button class="primary" id="btnAdd">+ Add team</button>
+          <button id="btnBulk">Bulk add…</button>
+        </div>
+      </div>
+      ${list.length === 0 ? `<div class="empty">No teams yet. Click <b>+ Add team</b> to begin. Each team is a doubles pair (two player names).</div>` : `
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Label</th><th>Player 1</th><th>Player 2</th><th></th></tr></thead>
+            <tbody>
+            ${list.map(t => `
+              <tr>
+                <td><input data-id="${t.id}" data-field="label" value="${escapeHTML(t.label || '')}" style="max-width:60px;"/></td>
+                <td><input data-id="${t.id}" data-field="player1" value="${escapeHTML(t.player1 || '')}"/></td>
+                <td><input data-id="${t.id}" data-field="player2" value="${escapeHTML(t.player2 || '')}"/></td>
+                <td><button class="small danger" data-del="${t.id}">Remove</button></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    </div>
+  `;
+
+  document.getElementById('btnAdd').onclick = async () => {
+    const label = nextLabel(list);
+    const id = uid('team_');
+    await set(ref(db, `tournaments/${tid}/teams/${id}`), { label, player1: '', player2: '' });
+  };
+  document.getElementById('btnBulk').onclick = () => openBulkAddModal();
+
+  body.querySelectorAll('input[data-id]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const id = inp.dataset.id, f = inp.dataset.field;
+      let v = inp.value;
+      if (f === 'label') v = v.toUpperCase().slice(0, 4);
+      await update(ref(db, `tournaments/${tid}/teams/${id}`), { [f]: v });
+    });
+  });
+  body.querySelectorAll('button[data-del]').forEach(b => {
+    b.onclick = async () => {
+      const id = b.dataset.del;
+      const name = teamLabel(teamsObj[id]);
+      if (!confirm(`Remove team "${name}"?\nNote: this also removes the team from any group it belongs to. Existing matches referencing it will become invalid.`)) return;
+      // Remove from groups
+      const groups = state.data.groups || {};
+      const updates = {};
+      updates[`tournaments/${tid}/teams/${id}`] = null;
+      Object.entries(groups).forEach(([gid, g]) => {
+        const teamIds = Array.isArray(g.teamIds) ? g.teamIds : [];
+        if (teamIds.includes(id)) {
+          updates[`tournaments/${tid}/groups/${gid}/teamIds`] = teamIds.filter(x => x !== id);
+        }
+      });
+      await update(ref(db), updates);
+    };
+  });
+}
+
+function openBulkAddModal() {
+  const tid = state.tid;
+  const back = document.createElement('div');
+  back.className = 'modal-back';
+  back.innerHTML = `
+    <div class="modal">
+      <h3>Bulk add teams</h3>
+      <p class="muted">One team per line. Use <code>player1, player2</code> or <code>player1 / player2</code>. Labels (A, B, C…) are auto-assigned.</p>
+      <textarea id="bulkText" placeholder="Vimal, Srini
+Raidu, Saravanen
+Madhu, Manoj"></textarea>
+      <div class="row" style="justify-content:flex-end; margin-top:10px;">
+        <button id="bulkCancel">Cancel</button>
+        <button class="primary" id="bulkAdd">Add teams</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(back);
+  back.querySelector('#bulkCancel').onclick = () => back.remove();
+  back.querySelector('#bulkAdd').onclick = async () => {
+    const txt = back.querySelector('#bulkText').value;
+    const lines = txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const existing = Object.values(state.data.teams || {});
+    const updates = {};
+    let labels = [...existing];
+    for (const line of lines) {
+      const parts = line.split(/[,/]+/).map(s => s.trim()).filter(Boolean);
+      const label = nextLabel(labels);
+      const id = uid('team_');
+      const team = { label, player1: parts[0] || '', player2: parts[1] || '' };
+      updates[`tournaments/${tid}/teams/${id}`] = team;
+      labels.push(team);
+    }
+    await update(ref(db), updates);
+    back.remove();
+    toast(`${lines.length} team(s) added`);
+  };
+}
+
+// ====================== Groups tab ======================
+function paintGroups(body) {
+  const t = state.data, tid = state.tid;
+  const teamsObj = t.teams || {};
+  const groupsObj = t.groups || {};
+  const groups = Object.entries(groupsObj).map(([id, v]) => ({
+    id, name: v.name || '(group)',
+    pointsToWin: v.pointsToWin || 15,
+    teamIds: Array.isArray(v.teamIds) ? v.teamIds : [],
+    createdAt: v.createdAt || 0
+  })).sort((a, b) => a.createdAt - b.createdAt);
+
+  // Find unassigned teams
+  const assigned = new Set(groups.flatMap(g => g.teamIds));
+  const unassigned = Object.keys(teamsObj).filter(id => !assigned.has(id));
+
+  body.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2>Groups (${groups.length})</h2>
+        <button class="primary" id="btnAddGroup">+ Add group</button>
+      </div>
+      <p class="muted">Assign teams to groups. Each group plays a round-robin (every team plays every other team once). Click <b>Generate matches</b> to create the schedule for a group.</p>
+      <p class="muted">Unassigned teams: <b>${unassigned.length}</b>${unassigned.length ? ' — ' + unassigned.map(id => escapeHTML(teamLabel({ ...teamsObj[id] }))).join(', ') : ''}</p>
+    </div>
+    ${groups.length === 0 ? `<div class="empty">No groups yet.</div>` : groups.map(g => renderGroupCard(g, teamsObj, t.matches || {})).join('')}
+  `;
+
+  document.getElementById('btnAddGroup').onclick = async () => {
+    const name = prompt('Group name:', 'Group ' + (groups.length + 1));
+    if (!name) return;
+    const ptw = Number(prompt('Points to win each match in this group?', '15')) || 15;
+    const id = uid('grp_');
+    await set(ref(db, `tournaments/${tid}/groups/${id}`), {
+      name, pointsToWin: ptw, teamIds: [], createdAt: Date.now()
+    });
+  };
+
+  body.querySelectorAll('[data-act]').forEach(b => {
+    b.onclick = () => onGroupAction(b.dataset.act, b.dataset.gid, b.dataset.tid);
+  });
+  body.querySelectorAll('select[data-add-tid]').forEach(sel => {
+    sel.onchange = () => onGroupAction('add-team', sel.dataset.gid, sel.value);
+  });
+}
+
+function renderGroupCard(g, teamsObj, matchesObj) {
+  const teamRows = g.teamIds.map(tid => {
+    const t = teamsObj[tid];
+    return `<tr><td><b>${escapeHTML(t?.label || '?')}</b></td><td>${escapeHTML([t?.player1, t?.player2].filter(Boolean).join(' / '))}</td><td><button class="small" data-act="remove-team" data-gid="${g.id}" data-tid="${tid}">Remove</button></td></tr>`;
+  }).join('');
+  const groupMatchCount = Object.values(matchesObj).filter(m => m && m.groupId === g.id).length;
+  const expectedMatches = (g.teamIds.length * (g.teamIds.length - 1)) / 2;
+
+  // Available teams to add
+  const assigned = new Set(g.teamIds);
+  // can't reference other groups here without state.data; use full assigned set globally
+  const allGroups = Object.values(state.data.groups || {});
+  const allAssigned = new Set(allGroups.flatMap(x => Array.isArray(x.teamIds) ? x.teamIds : []));
+  const options = Object.entries(teamsObj)
+    .filter(([id]) => !allAssigned.has(id))
+    .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
+    .map(([id, v]) => `<option value="${id}">${escapeHTML(v.label || '')} — ${escapeHTML([v.player1, v.player2].filter(Boolean).join(' / '))}</option>`).join('');
+
+  return `
+    <div class="card">
+      <div class="toolbar">
+        <h2>${escapeHTML(g.name)} <span class="pill">first to ${g.pointsToWin}</span></h2>
+        <div class="row">
+          <button class="small" data-act="rename" data-gid="${g.id}">Rename</button>
+          <button class="small" data-act="setpts" data-gid="${g.id}">Points to win…</button>
+          <button class="small primary" data-act="generate" data-gid="${g.id}">Generate matches</button>
+          <button class="small danger" data-act="delete" data-gid="${g.id}">Delete</button>
+        </div>
+      </div>
+      ${g.teamIds.length === 0 ? `<div class="empty">No teams in this group yet. Add teams below.</div>` : `
+        <table>
+          <thead><tr><th>Label</th><th>Players</th><th></th></tr></thead>
+          <tbody>${teamRows}</tbody>
+        </table>
+      `}
+      <div class="row" style="margin-top:10px;">
+        ${options ? `<select data-add-tid="" data-gid="${g.id}" style="max-width:280px;"><option value="">+ Add team to this group…</option>${options}</select>` : `<span class="muted">All teams are assigned to a group.</span>`}
+        <span class="muted">Matches: ${groupMatchCount}/${expectedMatches} created</span>
+      </div>
+    </div>
+  `;
+}
+
+async function onGroupAction(act, gid, arg) {
+  const tid = state.tid;
+  const t = state.data;
+  const g = t.groups[gid];
+  if (act === 'rename') {
+    const n = prompt('Group name:', g.name);
+    if (n) await update(ref(db, `tournaments/${tid}/groups/${gid}`), { name: n });
+  } else if (act === 'setpts') {
+    const v = Number(prompt('Points to win each match in this group?', g.pointsToWin || 15));
+    if (v > 0) await update(ref(db, `tournaments/${tid}/groups/${gid}`), { pointsToWin: v });
+  } else if (act === 'delete') {
+    if (!confirm(`Delete group "${g.name}"? Matches in this group will also be deleted.`)) return;
+    const updates = {};
+    updates[`tournaments/${tid}/groups/${gid}`] = null;
+    Object.entries(t.matches || {}).forEach(([mid, m]) => {
+      if (m && m.groupId === gid) updates[`tournaments/${tid}/matches/${mid}`] = null;
+    });
+    await update(ref(db), updates);
+  } else if (act === 'add-team') {
+    if (!arg) return;
+    const teamIds = [...(g.teamIds || []), arg];
+    await update(ref(db, `tournaments/${tid}/groups/${gid}`), { teamIds });
+  } else if (act === 'remove-team') {
+    const teamIds = (g.teamIds || []).filter(x => x !== arg);
+    // Remove any matches in this group involving the removed team
+    const updates = {};
+    updates[`tournaments/${tid}/groups/${gid}/teamIds`] = teamIds;
+    Object.entries(t.matches || {}).forEach(([mid, m]) => {
+      if (m && m.groupId === gid && (m.team1Id === arg || m.team2Id === arg)) {
+        updates[`tournaments/${tid}/matches/${mid}`] = null;
+      }
+    });
+    await update(ref(db), updates);
+  } else if (act === 'generate') {
+    const teamIds = g.teamIds || [];
+    if (teamIds.length < 2) { toast('Need at least 2 teams'); return; }
+    const existing = Object.entries(t.matches || {}).filter(([_, m]) => m && m.groupId === gid);
+    const existingPairs = new Set(existing.map(([_, m]) => pairKey(m.team1Id, m.team2Id)));
+    const allPairs = pairings(teamIds);
+    const newPairs = allPairs.filter(p => !existingPairs.has(pairKey(p[0], p[1])));
+    if (!newPairs.length) { toast('All matches already created for this group.'); return; }
+    if (!confirm(`Create ${newPairs.length} match(es) for ${g.name}?`)) return;
+    const updates = {};
+    let i = (Object.values(t.matches || {}).filter(m => m && m.groupId === gid).length) + 1;
+    for (const [a, b] of newPairs) {
+      const mid = uid('m_');
+      updates[`tournaments/${tid}/matches/${mid}`] = {
+        groupId: gid,
+        team1Id: a,
+        team2Id: b,
+        team1Score: null,
+        team2Score: null,
+        court: '',
+        startTime: '',
+        seq: i++
+      };
+    }
+    await update(ref(db), updates);
+    toast(`${newPairs.length} match(es) added`);
+  }
+}
+
+function pairKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+
+// ====================== Matches tab ======================
+function paintMatches(body) {
+  const t = state.data, tid = state.tid;
+  const teamsObj = t.teams || {};
+  const groupsObj = t.groups || {};
+  const matchesObj = t.matches || {};
+
+  const groupOrder = Object.entries(groupsObj).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
+  if (!groupOrder.length) {
+    body.innerHTML = `<div class="card"><div class="empty">No groups yet. Go to <b>Groups</b> to create one and generate matches.</div></div>`;
+    return;
+  }
+
+  const filterSel = `<select id="filterGroup" style="max-width:240px;">
+      <option value="all">All groups</option>
+      ${groupOrder.map(([gid, g]) => `<option value="${gid}">${escapeHTML(g.name)}</option>`).join('')}
+      <option value="todo">⏳ Pending only</option>
+      <option value="done">✅ Completed only</option>
+    </select>`;
+
+  body.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2>Matches</h2>
+        <div class="row">${filterSel}</div>
+      </div>
+      <p class="muted">Tap a match to enter the score. Winner is highlighted automatically based on points to win for that group.</p>
+      <div id="matchesBody"></div>
+    </div>
+  `;
+  const renderList = () => {
+    const f = document.getElementById('filterGroup').value;
+    const matches = Object.entries(matchesObj).map(([id, m]) => ({ id, ...m }))
+      .filter(m => {
+        if (f === 'all' || f === 'todo' || f === 'done') {
+          if (f === 'todo') return m.team1Score == null || m.team2Score == null;
+          if (f === 'done') return m.team1Score != null && m.team2Score != null;
+          return true;
+        }
+        return m.groupId === f;
+      })
+      .sort((a, b) => {
+        // group by groupId, then seq
+        const ga = groupsObj[a.groupId]?.createdAt || 0;
+        const gb = groupsObj[b.groupId]?.createdAt || 0;
+        if (ga !== gb) return ga - gb;
+        return (a.seq || 0) - (b.seq || 0);
+      });
+
+    const mb = document.getElementById('matchesBody');
+    if (!matches.length) { mb.innerHTML = `<div class="empty">No matches match this filter.</div>`; return; }
+    // Group by group for nicer display
+    const byGroup = {};
+    for (const m of matches) {
+      (byGroup[m.groupId] ||= []).push(m);
+    }
+    mb.innerHTML = Object.entries(byGroup).map(([gid, mlist]) => {
+      const g = groupsObj[gid] || { name: '(group)', pointsToWin: 15 };
+      return `
+        <h3 style="margin-top:14px;">${escapeHTML(g.name)} <span class="pill">first to ${g.pointsToWin}</span></h3>
+        <div class="grid">
+          ${mlist.map(m => renderMatchRow(m, g, teamsObj)).join('')}
+        </div>
+      `;
+    }).join('');
+
+    mb.querySelectorAll('[data-mid]').forEach(el => {
+      const mid = el.dataset.mid, f = el.dataset.field;
+      el.addEventListener('change', async () => {
+        let v = el.value;
+        if (f === 'team1Score' || f === 'team2Score') {
+          v = v === '' ? null : Number(v);
+          if (v != null && (isNaN(v) || v < 0)) { toast('Score must be ≥ 0'); return; }
+        }
+        await update(ref(db, `tournaments/${tid}/matches/${mid}`), { [f]: v });
+      });
+    });
+    mb.querySelectorAll('button[data-clear]').forEach(b => {
+      b.onclick = async () => {
+        const mid = b.dataset.clear;
+        await update(ref(db, `tournaments/${tid}/matches/${mid}`), { team1Score: null, team2Score: null });
+      };
+    });
+    mb.querySelectorAll('button[data-del]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Delete this match?')) return;
+        await remove(ref(db, `tournaments/${tid}/matches/${b.dataset.del}`));
+      };
+    });
+  };
+  document.getElementById('filterGroup').onchange = renderList;
+  renderList();
+}
+
+function renderMatchRow(m, g, teamsObj) {
+  const t1 = teamsObj[m.team1Id], t2 = teamsObj[m.team2Id];
+  const has1 = m.team1Score != null && m.team1Score !== '';
+  const has2 = m.team2Score != null && m.team2Score !== '';
+  const completed = has1 && has2;
+  let cls1 = '', cls2 = '';
+  if (completed) {
+    if (m.team1Score > m.team2Score) { cls1 = 'winner'; cls2 = 'loser'; }
+    else if (m.team2Score > m.team1Score) { cls2 = 'winner'; cls1 = 'loser'; }
+  }
+  return `
+    <div class="card" style="margin:0; padding:10px;">
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted" style="font-size:12px;">Match #${m.seq || ''} ${m.court ? '· <span class="court-tag">' + escapeHTML(m.court) + '</span>' : ''} ${m.startTime ? '· ' + escapeHTML(m.startTime) : ''}</div>
+        <div>${completed ? '<span class="pill green">done</span>' : '<span class="pill amber">pending</span>'}</div>
+      </div>
+      <div class="grid cols-2" style="margin-top:6px; align-items:center;">
+        <div class="${cls1}">
+          <div><b>${escapeHTML(t1?.label || '?')}</b> · ${escapeHTML([t1?.player1, t1?.player2].filter(Boolean).join(' / '))}</div>
+          <input type="number" min="0" inputmode="numeric" data-mid="${m.id}" data-field="team1Score" value="${m.team1Score ?? ''}" placeholder="score" style="margin-top:6px; max-width:100px;"/>
+        </div>
+        <div class="${cls2}">
+          <div><b>${escapeHTML(t2?.label || '?')}</b> · ${escapeHTML([t2?.player1, t2?.player2].filter(Boolean).join(' / '))}</div>
+          <input type="number" min="0" inputmode="numeric" data-mid="${m.id}" data-field="team2Score" value="${m.team2Score ?? ''}" placeholder="score" style="margin-top:6px; max-width:100px;"/>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input data-mid="${m.id}" data-field="court" value="${escapeHTML(m.court || '')}" placeholder="Court (e.g. C1)" style="max-width:140px;"/>
+        <input data-mid="${m.id}" data-field="startTime" value="${escapeHTML(m.startTime || '')}" placeholder="Start time (e.g. 18:30)" style="max-width:160px;"/>
+        <button class="small" data-clear="${m.id}">Clear score</button>
+        <button class="small danger" data-del="${m.id}">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+// ====================== Standings ======================
+function paintStandings(body) {
+  const t = state.data;
+  const teamsObj = t.teams || {};
+  const groupsObj = t.groups || {};
+  const matchesObj = t.matches || {};
+  const groupOrder = Object.entries(groupsObj).sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
+  if (!groupOrder.length) {
+    body.innerHTML = `<div class="card"><div class="empty">No groups yet.</div></div>`;
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="card">
+      <h2>Standings</h2>
+      <p class="muted">Sort: <b>Wins</b> → <b>Point difference (PD)</b> → <b>Points scored (PF)</b>.</p>
+    </div>
+    ${groupOrder.map(([gid, g]) => renderStandingsCard(gid, g, teamsObj, matchesObj)).join('')}
+  `;
+}
+
+function renderStandingsCard(gid, g, teamsObj, matchesObj) {
+  const teamIds = Array.isArray(g.teamIds) ? g.teamIds : [];
+  if (!teamIds.length) {
+    return `<div class="card"><h2>${escapeHTML(g.name)}</h2><div class="empty">No teams.</div></div>`;
+  }
+  const stats = {};
+  for (const id of teamIds) stats[id] = { id, played: 0, w: 0, l: 0, pf: 0, pa: 0, pd: 0 };
+
+  for (const m of Object.values(matchesObj)) {
+    if (!m || m.groupId !== gid) continue;
+    if (m.team1Score == null || m.team2Score == null) continue;
+    if (m.team1Score === '' || m.team2Score === '') continue;
+    const a = stats[m.team1Id], b = stats[m.team2Id];
+    if (!a || !b) continue;
+    a.played++; b.played++;
+    a.pf += Number(m.team1Score); a.pa += Number(m.team2Score);
+    b.pf += Number(m.team2Score); b.pa += Number(m.team1Score);
+    if (m.team1Score > m.team2Score) { a.w++; b.l++; }
+    else if (m.team2Score > m.team1Score) { b.w++; a.l++; }
+  }
+  const arr = Object.values(stats);
+  for (const s of arr) s.pd = s.pf - s.pa;
+  arr.sort((a, b) => (b.w - a.w) || (b.pd - a.pd) || (b.pf - a.pf) || ((teamsObj[a.id]?.label || '').localeCompare(teamsObj[b.id]?.label || '')));
+
+  const totalMatches = teamIds.length * (teamIds.length - 1) / 2;
+  const completed = Object.values(matchesObj).filter(m => m && m.groupId === gid && m.team1Score != null && m.team2Score != null).length;
+
+  return `
+    <div class="card">
+      <div class="toolbar">
+        <h2>${escapeHTML(g.name)} <span class="pill">first to ${g.pointsToWin || 15}</span></h2>
+        <span class="muted">${completed}/${totalMatches} matches played</span>
+      </div>
+      <div style="overflow-x:auto;">
+      <table class="standings-table">
+        <thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">PF</th><th class="num">PA</th><th class="num">PD</th></tr></thead>
+        <tbody>
+          ${arr.map((s, i) => `
+            <tr>
+              <td class="rank">${i + 1}</td>
+              <td class="team"><b>${escapeHTML(teamsObj[s.id]?.label || '?')}</b> — ${escapeHTML([teamsObj[s.id]?.player1, teamsObj[s.id]?.player2].filter(Boolean).join(' / '))}</td>
+              <td class="num">${s.played}</td>
+              <td class="num">${s.w}</td>
+              <td class="num">${s.l}</td>
+              <td class="num">${s.pf}</td>
+              <td class="num">${s.pa}</td>
+              <td class="num" style="font-weight:600; color:${s.pd > 0 ? 'var(--success)' : s.pd < 0 ? 'var(--danger)' : 'var(--muted)'};">${s.pd > 0 ? '+' : ''}${s.pd}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  `;
+}
+
+// ====================== Header buttons & Boot ======================
+document.getElementById('btnHome').onclick = () => go('#/');
+document.getElementById('btnSettings').onclick = () => go('#/settings');
+window.addEventListener('hashchange', render);
+window.addEventListener('error', e => console.error('Uncaught:', e.error || e.message));
+render();
+</script>
+</body>
+</html>
