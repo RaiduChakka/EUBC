@@ -92,6 +92,14 @@ If you'd rather skip GitHub: open <https://app.netlify.com/drop>, drag the folde
 4. **Groups** tab → **+ Add group**, set the name (e.g. *Group 1*) and **points to win** (e.g. 15 or 21). Add teams to the group from the dropdown. Click **Generate matches** to create the round-robin schedule.
 5. **Matches** tab → enter scores as games finish. (Optional: add court & start time per match.)
 6. **Standings** tab → live ranking, sorted by Wins → PD → PF.
+7. **Knockout** tab → once group play is done (or even before, if you want a preview):
+   - Set how many teams **qualify per group** (typically 1 or 2).
+   - Set how many **wildcards** to add (next-best teams across all groups by W → PD → PF).
+   - Total qualifiers must be **4** (Semi-Final + Final), **8** (QF + SF + Final), or **16** (R16 + QF + SF + Final).
+   - Choose **points to win** for knockout matches (often 21).
+   - Tick **3rd-place playoff** if you want one.
+   - Click **Generate bracket** — the app seeds 1v8, 4v5, 3v6, 2v7 (or 1v4, 2v3 for 4-team) so the top seeds meet last. As you enter each match score, the winner automatically advances to the next round across all devices.
+   - You can **re-generate** any time (e.g. after the last group game finishes) — this re-seeds from the latest standings and clears in-progress KO scores.
 
 ### Sharing with co-referees / spectators
 
