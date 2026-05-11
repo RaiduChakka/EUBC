@@ -1280,33 +1280,67 @@ function buildBracketSkeleton(qualifiers, config) {
   return matches;
 }
 
-function winnerOf(m) {
+// Defaults & per-round config helpers
+const ROUND_KEYS = ['R16', 'QF', 'SF', 'F', '3P'];
+const ROUND_LABELS = { R16: 'Round of 16', QF: 'Quarter-finals', SF: 'Semi-finals', F: 'Final', '3P': '3rd-place Playoff' };
+const DEFAULT_ROUND_CFG = {
+  R16: { format: 'single', pointsToWin: 15 },
+  QF:  { format: 'single', pointsToWin: 21 },
+  SF:  { format: 'bo3',    pointsToWin: 21 },
+  F:   { format: 'bo3',    pointsToWin: 21 },
+  '3P':{ format: 'single', pointsToWin: 21 }
+};
+function getRoundCfg(cfg, round) {
+  if (cfg && cfg.rounds && cfg.rounds[round]) return cfg.rounds[round];
+  // backward-compat with old single-points-to-win schema
+  if (cfg && cfg.pointsToWin) return { format: 'single', pointsToWin: cfg.pointsToWin };
+  return DEFAULT_ROUND_CFG[round] || { format: 'single', pointsToWin: 21 };
+}
+function setsWon(m) {
+  let w1 = 0, w2 = 0;
+  for (const s of (m.sets || [])) {
+    if (s == null || s.t1 == null || s.t2 == null || s.t1 === '' || s.t2 === '') continue;
+    if (+s.t1 > +s.t2) w1++;
+    else if (+s.t2 > +s.t1) w2++;
+  }
+  return [w1, w2];
+}
+function winnerOf(m, format) {
   if (m == null) return null;
+  format = format || 'single';
+  if (format === 'bo3') {
+    const [w1, w2] = setsWon(m);
+    if (w1 >= 2) return m.team1Id || null;
+    if (w2 >= 2) return m.team2Id || null;
+    return null;
+  }
   if (m.team1Score == null || m.team2Score == null) return null;
   if (m.team1Score === '' || m.team2Score === '') return null;
   if (+m.team1Score > +m.team2Score) return m.team1Id;
   if (+m.team2Score > +m.team1Score) return m.team2Id;
-  return null; // tie
+  return null;
 }
-function loserOf(m) {
-  const w = winnerOf(m);
+function loserOf(m, format) {
+  const w = winnerOf(m, format);
   if (!w) return null;
   return w === m.team1Id ? m.team2Id : m.team1Id;
 }
 
 // Walk the bracket and resolve team1Id/team2Id for downstream matches based on completed sources.
-function propagateBracket(matches) {
+function propagateBracket(matches, cfg) {
   const updates = {};
   for (const [id, m] of Object.entries(matches)) {
     if (m.sourceA) {
       const sm = matches[m.sourceA];
-      const want = m.sourceLoser ? loserOf(sm) : winnerOf(sm);
+      const sFmt = getRoundCfg(cfg, sm && sm.round).format;
+      const want = m.sourceLoser ? loserOf(sm, sFmt) : winnerOf(sm, sFmt);
       if (want != null && m.team1Id !== want) { updates[id + '/team1Id'] = want; m.team1Id = want; }
       if (want == null && m.team1Id != null) { updates[id + '/team1Id'] = null; m.team1Id = null; }
     }
     if (m.sourceB) {
       const sm = matches[m.sourceB];
-      const want = m.sourceLoser ? loserOf(sm) : winnerOf(sm);
+      const sFmt = getRoundCfg(cfg, sm && sm.round).format;
+      const want = m.sourceLoser ? loserOf(sm, sFmt) : winnerOf(sm, sFmt);
       if (want != null && m.team2Id !== want) { updates[id + '/team2Id'] = want; m.team2Id = want; }
       if (want == null && m.team2Id != null) { updates[id + '/team2Id'] = null; m.team2Id = null; }
     }
@@ -1350,28 +1384,41 @@ function paintKnockout(body) {
     }
   }
 
+  // Build per-round controls. Compute which rounds will exist from the suggested qualifier count.
+  function roundsForSize(n) {
+    if (n === 16) return ['R16', 'QF', 'SF', 'F', '3P'];
+    if (n === 8) return ['QF', 'SF', 'F', '3P'];
+    if (n === 4) return ['SF', 'F', '3P'];
+    return [];
+  }
+  const initialTop = cfg ? cfg.topPerGroup : defaultTop;
+  const initialWild = cfg ? cfg.wildcards : suggestedWild;
+  const initialThird = cfg ? (cfg.thirdPlace !== false) : true;
+  const initialRoundCfg = (round) => (cfg && cfg.rounds && cfg.rounds[round]) ? cfg.rounds[round] : DEFAULT_ROUND_CFG[round];
+
   body.innerHTML = `
     <div class="card">
       <h2>Knockout stage</h2>
       <p class="muted">Pick how many teams qualify per group plus how many "wildcards" (next-best teams across groups by W → PD → PF). Total qualifiers must be <b>4</b> (Semi-Final → Final), <b>8</b> (QF → SF → Final), or <b>16</b> (R16 → QF → SF → Final).</p>
       ${!groupStageDone ? `<p style="color:var(--accent); font-size:13px;">⚠ Group stage not finished (${completedGroup}/${totalGroupMatches} matches done). You can still generate the bracket — just regenerate after all group games are in.</p>` : ''}
-      <div class="grid cols-3" style="margin-top:8px;">
+      <div class="grid cols-2" style="margin-top:8px;">
         <div>
           <label>Top per group qualifies</label>
-          <input type="number" min="0" max="8" id="koTop" value="${cfg ? cfg.topPerGroup : defaultTop}" />
+          <input type="number" min="0" max="8" id="koTop" value="${initialTop}" />
         </div>
         <div>
           <label>Wildcards (best of the rest)</label>
-          <input type="number" min="0" max="16" id="koWild" value="${cfg ? cfg.wildcards : suggestedWild}" />
-        </div>
-        <div>
-          <label>Points to win each KO match</label>
-          <input type="number" min="1" id="koPts" value="${cfg ? cfg.pointsToWin : 21}" />
+          <input type="number" min="0" max="16" id="koWild" value="${initialWild}" />
         </div>
       </div>
       <div class="row" style="margin-top:10px;">
-        <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="koThird" ${cfg && cfg.thirdPlace !== false ? 'checked' : (!cfg ? 'checked' : '')} style="width:auto;"/> Include 3rd-place playoff</label>
+        <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="koThird" ${initialThird ? 'checked' : ''} style="width:auto;"/> Include 3rd-place playoff</label>
       </div>
+
+      <h3 style="margin-top:14px;">Match format per round</h3>
+      <p class="muted">For each round, choose a single game or best-of-3 sets, and the points to win each game. Common choices: single to 15 for early rounds, best-of-3 to 21 for SF/Final.</p>
+      <div id="roundCfgBox"></div>
+
       <div class="row" style="margin-top:14px;">
         <button class="primary" id="btnGenKO">${cfg ? 'Re-generate bracket from current standings' : 'Generate bracket'}</button>
         ${cfg ? `<button class="danger" id="btnClearKO">Clear knockout stage</button>` : ''}
@@ -1380,6 +1427,40 @@ function paintKnockout(body) {
     </div>
     <div id="bracketBody"></div>
   `;
+
+  function renderRoundCfg() {
+    const top = +document.getElementById('koTop').value || 0;
+    const wild = +document.getElementById('koWild').value || 0;
+    const third = document.getElementById('koThird').checked;
+    const total = top * groupCount + wild;
+    const rounds = roundsForSize(total).filter(r => r !== '3P' || third);
+    const box = document.getElementById('roundCfgBox');
+    if (!rounds.length) {
+      box.innerHTML = `<div class="empty" style="padding:12px;">Total qualifiers must be 4, 8, or 16. Adjust the numbers above.</div>`;
+      return;
+    }
+    box.innerHTML = `
+      <table>
+        <thead><tr><th>Round</th><th>Format</th><th class="num">Points to win each game</th></tr></thead>
+        <tbody>
+          ${rounds.map(r => {
+            const rc = initialRoundCfg(r);
+            return `<tr>
+              <td><b>${ROUND_LABELS[r]}</b></td>
+              <td>
+                <select data-rcfg-fmt="${r}" style="max-width:200px;">
+                  <option value="single" ${rc.format === 'single' ? 'selected' : ''}>Single game</option>
+                  <option value="bo3" ${rc.format === 'bo3' ? 'selected' : ''}>Best of 3 sets</option>
+                </select>
+              </td>
+              <td class="num"><input type="number" min="1" data-rcfg-pts="${r}" value="${rc.pointsToWin}" style="max-width:90px;"/></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  renderRoundCfg();
 
   const renderPreview = () => {
     const top = +document.getElementById('koTop').value || 0;
@@ -1400,23 +1481,31 @@ function paintKnockout(body) {
     `;
     document.getElementById('koPreview').innerHTML = html;
   };
-  document.getElementById('koTop').addEventListener('input', renderPreview);
-  document.getElementById('koWild').addEventListener('input', renderPreview);
+  const onCfgInput = () => { renderPreview(); renderRoundCfg(); };
+  document.getElementById('koTop').addEventListener('input', onCfgInput);
+  document.getElementById('koWild').addEventListener('input', onCfgInput);
+  document.getElementById('koThird').addEventListener('change', renderRoundCfg);
   renderPreview();
 
   document.getElementById('btnGenKO').onclick = async () => {
     const top = +document.getElementById('koTop').value || 0;
     const wild = +document.getElementById('koWild').value || 0;
-    const pts = +document.getElementById('koPts').value || 21;
     const third = document.getElementById('koThird').checked;
     const total = top * groupCount + wild;
     if (!bracketSize(total)) { toast(`Total qualifiers (${total}) must be 4, 8 or 16.`); return; }
     const qs = pickQualifiers(allStandings, top, wild);
     if (qs.length !== total) { toast(`Not enough teams. Got ${qs.length} qualifiers.`); return; }
     if (cfg && !confirm('Re-generate the bracket from current standings? This wipes existing knockout scores.')) return;
-    const newConfig = { topPerGroup: top, wildcards: wild, pointsToWin: pts, thirdPlace: third, generatedAt: Date.now() };
+    // Collect per-round config
+    const rounds = {};
+    body.querySelectorAll('[data-rcfg-fmt]').forEach(sel => {
+      const r = sel.dataset.rcfgFmt;
+      const pts = +body.querySelector(`[data-rcfg-pts="${r}"]`).value || 21;
+      rounds[r] = { format: sel.value, pointsToWin: pts };
+    });
+    const newConfig = { topPerGroup: top, wildcards: wild, thirdPlace: third, rounds, generatedAt: Date.now() };
     const matches = buildBracketSkeleton(qs, newConfig);
-    propagateBracket(matches); // initial pass (no winners yet, but resolves any byes — there are none here)
+    propagateBracket(matches, newConfig);
     await update(ref(db, `tournaments/${tid}/knockout`), { config: newConfig, qualifiers: qs, matches });
     toast('Bracket generated');
   };
@@ -1433,9 +1522,9 @@ function paintKnockout(body) {
   // ====== Render the bracket ======
   const bracketBody = document.getElementById('bracketBody');
   const matches = JSON.parse(JSON.stringify(koMatches)); // local copy for propagation
-  propagateBracket(matches); // resolve teams from current scores
+  propagateBracket(matches, cfg); // resolve teams from current scores
   // Persist any newly-resolved team IDs (so other devices see them)
-  const liveUpdates = propagateBracket(JSON.parse(JSON.stringify(koMatches)));
+  const liveUpdates = propagateBracket(JSON.parse(JSON.stringify(koMatches)), cfg);
   if (Object.keys(liveUpdates).length) {
     const writeUpdates = {};
     for (const [path, val] of Object.entries(liveUpdates)) writeUpdates[`tournaments/${tid}/knockout/matches/${path}`] = val;
@@ -1445,14 +1534,14 @@ function paintKnockout(body) {
   // Group matches by round
   const byRound = {};
   for (const m of Object.values(matches)) (byRound[m.round] ||= []).push(m);
-  const order = ['R16', 'QF', 'SF', 'F', '3P'];
-  const labels = { R16: 'Round of 16', QF: 'Quarter-finals', SF: 'Semi-finals', F: 'Final', '3P': '3rd-place Playoff' };
 
-  bracketBody.innerHTML = order.filter(r => byRound[r]).map(r => {
+  bracketBody.innerHTML = ROUND_KEYS.filter(r => byRound[r]).map(r => {
     const ms = byRound[r].sort((a, b) => a.slot - b.slot);
+    const rc = getRoundCfg(cfg, r);
+    const fmtLabel = rc.format === 'bo3' ? `best of 3 · games to ${rc.pointsToWin}` : `single game · first to ${rc.pointsToWin}`;
     return `
       <div class="card">
-        <h3>${labels[r]} <span class="pill">first to ${cfg.pointsToWin}</span></h3>
+        <h3>${ROUND_LABELS[r]} <span class="pill">${fmtLabel}</span></h3>
         <div class="grid ${ms.length > 1 ? 'cols-2' : ''}" style="gap:10px;">
           ${ms.map(m => renderKoMatchCard(m, teamsObj, matches, cfg)).join('')}
         </div>
@@ -1460,38 +1549,61 @@ function paintKnockout(body) {
     `;
   }).join('');
 
-  // Wire up inputs
+  // Wire up score inputs (single-game format)
   bracketBody.querySelectorAll('input[data-kid]').forEach(inp => {
     inp.addEventListener('change', async () => {
       const id = inp.dataset.kid, f = inp.dataset.field;
       let v = inp.value;
-      if (f === 'team1Score' || f === 'team2Score') {
-        v = v === '' ? null : Number(v);
-        if (v != null && (isNaN(v) || v < 0)) { toast('Score must be ≥ 0'); return; }
-      }
-      // Update local copy and propagate
+      if (v === '') v = null;
+      else { v = Number(v); if (isNaN(v) || v < 0) { toast('Score must be ≥ 0'); return; } }
       const local = JSON.parse(JSON.stringify(koMatches));
       local[id] = { ...local[id], [f]: v };
-      const propUpdates = propagateBracket(local);
+      const propUpdates = propagateBracket(local, cfg);
       const updates = {};
       updates[`tournaments/${tid}/knockout/matches/${id}/${f}`] = v;
       for (const [path, val] of Object.entries(propUpdates)) {
-        // skip changes to the match we just edited (already covered)
         if (path.startsWith(id + '/')) continue;
         updates[`tournaments/${tid}/knockout/matches/${path}`] = val;
       }
       await update(ref(db), updates);
     });
   });
+
+  // Wire up set inputs (best-of-3)
+  bracketBody.querySelectorAll('input[data-koset]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const id = inp.dataset.koset;
+      const idx = +inp.dataset.setidx;
+      const team = inp.dataset.team; // "t1" or "t2"
+      let v = inp.value;
+      if (v === '') v = null;
+      else { v = Number(v); if (isNaN(v) || v < 0) { toast('Score must be ≥ 0'); return; } }
+      const local = JSON.parse(JSON.stringify(koMatches));
+      const sets = Array.isArray(local[id].sets) ? local[id].sets.slice() : [];
+      while (sets.length <= idx) sets.push({});
+      sets[idx] = { ...sets[idx], [team]: v };
+      local[id] = { ...local[id], sets };
+      const propUpdates = propagateBracket(local, cfg);
+      const updates = {};
+      updates[`tournaments/${tid}/knockout/matches/${id}/sets/${idx}/${team}`] = v;
+      for (const [path, val] of Object.entries(propUpdates)) {
+        if (path.startsWith(id + '/')) continue;
+        updates[`tournaments/${tid}/knockout/matches/${path}`] = val;
+      }
+      await update(ref(db), updates);
+    });
+  });
+
   bracketBody.querySelectorAll('button[data-clear-ko]').forEach(b => {
     b.onclick = async () => {
       const id = b.dataset.clearKo;
       const local = JSON.parse(JSON.stringify(koMatches));
-      local[id] = { ...local[id], team1Score: null, team2Score: null };
-      const propUpdates = propagateBracket(local);
+      local[id] = { ...local[id], team1Score: null, team2Score: null, sets: null };
+      const propUpdates = propagateBracket(local, cfg);
       const updates = {};
       updates[`tournaments/${tid}/knockout/matches/${id}/team1Score`] = null;
       updates[`tournaments/${tid}/knockout/matches/${id}/team2Score`] = null;
+      updates[`tournaments/${tid}/knockout/matches/${id}/sets`] = null;
       for (const [path, val] of Object.entries(propUpdates)) {
         if (path.startsWith(id + '/')) continue;
         updates[`tournaments/${tid}/knockout/matches/${path}`] = val;
@@ -1502,16 +1614,31 @@ function paintKnockout(body) {
 }
 
 function renderKoMatchCard(m, teamsObj, allMatches, cfg) {
+  const rcfg = getRoundCfg(cfg, m.round);
+  const isBo3 = rcfg.format === 'bo3';
   const t1 = m.team1Id ? teamsObj[m.team1Id] : null;
   const t2 = m.team2Id ? teamsObj[m.team2Id] : null;
-  const has1 = m.team1Score != null && m.team1Score !== '';
-  const has2 = m.team2Score != null && m.team2Score !== '';
-  const completed = has1 && has2 && +m.team1Score !== +m.team2Score;
-  let cls1 = '', cls2 = '';
-  if (completed) {
-    if (+m.team1Score > +m.team2Score) { cls1 = 'winner'; cls2 = 'loser'; }
-    else { cls2 = 'winner'; cls1 = 'loser'; }
+
+  let cls1 = '', cls2 = '', statusPill = '';
+  if (isBo3) {
+    const [w1, w2] = setsWon(m);
+    if (w1 >= 2) { cls1 = 'winner'; cls2 = 'loser'; statusPill = `<span class="pill green">${w1}–${w2}</span>`; }
+    else if (w2 >= 2) { cls2 = 'winner'; cls1 = 'loser'; statusPill = `<span class="pill green">${w1}–${w2}</span>`; }
+    else if (m.team1Id && m.team2Id) statusPill = `<span class="pill amber">${w1}–${w2}</span>`;
+    else statusPill = `<span class="pill gray">awaiting</span>`;
+  } else {
+    const has1 = m.team1Score != null && m.team1Score !== '';
+    const has2 = m.team2Score != null && m.team2Score !== '';
+    const completed = has1 && has2 && +m.team1Score !== +m.team2Score;
+    if (completed) {
+      if (+m.team1Score > +m.team2Score) { cls1 = 'winner'; cls2 = 'loser'; }
+      else { cls2 = 'winner'; cls1 = 'loser'; }
+      statusPill = '<span class="pill green">done</span>';
+    } else if (has1 && has2) statusPill = '<span class="pill amber">tie?</span>';
+    else if (m.team1Id && m.team2Id) statusPill = '<span class="pill amber">pending</span>';
+    else statusPill = '<span class="pill gray">awaiting</span>';
   }
+
   function slotLabel(side) {
     if (side === 'A') {
       if (m.seedA) return `Seed ${m.seedA}`;
@@ -1534,22 +1661,65 @@ function renderKoMatchCard(m, teamsObj, allMatches, cfg) {
     if (t) return `<div class="${cls}"><b>${escapeHTML(t.label || '?')}</b> · ${escapeHTML([t.player1, t.player2].filter(Boolean).join(' / '))}</div>`;
     return `<div class="muted">⏳ ${escapeHTML(slotLabel(slot))}</div>`;
   }
+
+  // Score body — single vs bo3
+  let scoreBody;
+  if (isBo3) {
+    const sets = Array.isArray(m.sets) ? m.sets : [];
+    const [w1, w2] = setsWon(m);
+    const seriesDone = w1 >= 2 || w2 >= 2;
+    function setRow(i) {
+      const s = sets[i] || {};
+      const setComplete = s.t1 != null && s.t2 != null && s.t1 !== '' && s.t2 !== '' && +s.t1 !== +s.t2;
+      let sCls1 = '', sCls2 = '';
+      if (setComplete) {
+        if (+s.t1 > +s.t2) { sCls1 = 'winner'; sCls2 = 'loser'; } else { sCls2 = 'winner'; sCls1 = 'loser'; }
+      }
+      // Auto-derived "set 3 needed" check
+      let setNeeded = true;
+      if (i === 2) setNeeded = (w1 === 1 && w2 === 1);  // only needed if 1-1 going in
+      const disabled = (!m.team1Id || !m.team2Id) || (i === 2 && !setNeeded && !(s.t1 || s.t2));
+      return `
+        <div class="row" style="gap:6px; align-items:center; margin-top:4px;">
+          <span class="muted" style="font-size:12px; min-width:42px;">Set ${i + 1}</span>
+          <input class="${sCls1}" type="number" min="0" inputmode="numeric" data-koset="${m.id}" data-setidx="${i}" data-team="t1" value="${s.t1 ?? ''}" placeholder="—" ${disabled ? 'disabled' : ''} style="max-width:70px; text-align:center;"/>
+          <span class="muted">–</span>
+          <input class="${sCls2}" type="number" min="0" inputmode="numeric" data-koset="${m.id}" data-setidx="${i}" data-team="t2" value="${s.t2 ?? ''}" placeholder="—" ${disabled ? 'disabled' : ''} style="max-width:70px; text-align:center;"/>
+        </div>
+      `;
+    }
+    scoreBody = `
+      <div style="margin-top:6px;">
+        ${setRow(0)}
+        ${setRow(1)}
+        ${setRow(2)}
+        <div class="muted" style="font-size:12px; margin-top:6px;">Sets won: <b>${w1}–${w2}</b>${seriesDone ? ' · series complete' : (w1 === 1 && w2 === 1 ? ' · decider needed' : '')}</div>
+      </div>
+    `;
+  } else {
+    scoreBody = `
+      <div class="grid cols-2" style="margin-top:6px;">
+        <div>
+          <input class="${cls1}" type="number" min="0" inputmode="numeric" data-kid="${m.id}" data-field="team1Score" value="${m.team1Score ?? ''}" placeholder="score" ${m.team1Id ? '' : 'disabled'} style="margin-top:6px; max-width:100px;"/>
+        </div>
+        <div>
+          <input class="${cls2}" type="number" min="0" inputmode="numeric" data-kid="${m.id}" data-field="team2Score" value="${m.team2Score ?? ''}" placeholder="score" ${m.team2Id ? '' : 'disabled'} style="margin-top:6px; max-width:100px;"/>
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div class="card" style="margin:0; padding:10px;">
       <div class="row" style="justify-content:space-between;">
-        <div class="muted" style="font-size:12px;">${m.round} ${m.slot ? '#' + m.slot : ''}</div>
-        <div>${completed ? '<span class="pill green">done</span>' : (has1 && has2 ? '<span class="pill amber">tie?</span>' : (m.team1Id && m.team2Id ? '<span class="pill amber">pending</span>' : '<span class="pill gray">awaiting</span>'))}</div>
+        <div class="muted" style="font-size:12px;">${m.round} ${m.slot ? '#' + m.slot : ''} · ${isBo3 ? `Bo3 to ${rcfg.pointsToWin}` : `to ${rcfg.pointsToWin}`}</div>
+        <div>${statusPill}</div>
       </div>
-      <div class="grid cols-2" style="margin-top:6px;">
-        <div>
-          ${teamLine(t1, 'A', cls1)}
-          <input type="number" min="0" inputmode="numeric" data-kid="${m.id}" data-field="team1Score" value="${m.team1Score ?? ''}" placeholder="score" ${m.team1Id ? '' : 'disabled'} style="margin-top:6px; max-width:100px;"/>
-        </div>
-        <div>
-          ${teamLine(t2, 'B', cls2)}
-          <input type="number" min="0" inputmode="numeric" data-kid="${m.id}" data-field="team2Score" value="${m.team2Score ?? ''}" placeholder="score" ${m.team2Id ? '' : 'disabled'} style="margin-top:6px; max-width:100px;"/>
-        </div>
+      <div class="grid cols-2" style="margin-top:6px; gap:6px;">
+        ${teamLine(t1, 'A', cls1)}
+        ${teamLine(t2, 'B', cls2)}
       </div>
+      ${scoreBody}
       <div class="row" style="margin-top:8px;">
         <button class="small" data-clear-ko="${m.id}">Clear score</button>
       </div>
